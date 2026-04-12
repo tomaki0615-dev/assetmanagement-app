@@ -2,251 +2,77 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>資産管理アプリ（完全版）</title>
+<title>資産管理</title>
 
-<!-- Chart.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 
 <style>
 body { font-family: sans-serif; padding: 20px; }
-input, select, button { margin: 5px; padding: 6px; }
-table { border-collapse: collapse; margin-top: 10px; width: 100%; }
-td, th { border: 1px solid #ccc; padding: 6px; text-align: center; }
-h3 { margin-top: 30px; }
+input, button { margin: 5px; padding: 5px; }
 </style>
 </head>
 
 <body>
 
-<h2>📊 資産管理アプリ（全部入り）</h2>
+<h2>📊 資産管理（最小版）</h2>
 
-<h3>■ 資産入力</h3>
-<input type="date" id="date">
-<select id="category">
-  <option value="現金">現金</option>
-  <option value="株">株</option>
-  <option value="投資信託">投資信託</option>
-  <option value="その他">その他</option>
-</select>
-<input type="number" id="amount" placeholder="金額">
-<button onclick="addAsset()">追加</button>
+<input id="name" placeholder="資産の種類">
+<input id="amount" type="number" placeholder="金額">
+<button onclick="add()">追加</button>
 
-<h3>■ 配当入力</h3>
-<input type="date" id="divDate">
-<input type="number" id="divAmount" placeholder="配当金">
-<button onclick="addDividend()">追加</button>
+<h3>合計：<span id="total">0</span> 円</h3>
 
-<h3>■ 合計資産：<span id="total">0</span> 円</h3>
+<ul id="list"></ul>
 
-<h3>■ データ一覧</h3>
-<table id="table">
-<tr><th>日付</th><th>カテゴリ</th><th>金額</th><th>削除</th></tr>
-</table>
-
-<h3>■ 累積資産推移</h3>
-<canvas id="chart1"></canvas>
-
-<h3>■ 累積（月別資産）</h3>
-<canvas id="chart2"></canvas>
-
-<h3>■ 累積配当</h3>
-<canvas id="chart3"></canvas>
+<canvas id="chart"></canvas>
 
 <script>
-// ===== データ =====
-let assets = JSON.parse(localStorage.getItem("assets")) || [];
-let dividends = JSON.parse(localStorage.getItem("dividends")) || [];
+let assets = [];
 
-// ===== カンマ =====
-function formatNumber(num) {
+function format(num){
   return num.toLocaleString();
 }
 
-// ===== 保存 =====
-function save() {
-  localStorage.setItem("assets", JSON.stringify(assets));
-  localStorage.setItem("dividends", JSON.stringify(dividends));
-}
-
-// ===== 追加 =====
-function addAsset() {
-  const date = document.getElementById("date").value;
-  const category = document.getElementById("category").value;
+function add(){
+  const name = document.getElementById("name").value;
   const amount = Number(document.getElementById("amount").value);
 
-  if (!date || !amount) return alert("入力してね");
+  if(!name || !amount) return;
 
-  assets.push({ date, category, amount });
-  save();
+  assets.push({name, amount});
   render();
 }
 
-function addDividend() {
-  const date = document.getElementById("divDate").value;
-  const amount = Number(document.getElementById("divAmount").value);
+function render(){
+  const list = document.getElementById("list");
+  list.innerHTML = "";
 
-  if (!date || !amount) return alert("入力してね");
-
-  dividends.push({ date, amount });
-  save();
-  render();
-}
-
-// ===== 削除 =====
-function deleteRow(index) {
-  assets.splice(index, 1);
-  save();
-  render();
-}
-
-// ===== 合計 =====
-function renderTotal() {
-  const total = assets.reduce((sum, a) => sum + a.amount, 0);
-  document.getElementById("total").textContent = formatNumber(total);
-}
-
-// ===== テーブル =====
-function renderTable() {
-  const table = document.getElementById("table");
-  table.innerHTML = "<tr><th>日付</th><th>カテゴリ</th><th>金額</th><th>削除</th></tr>";
-
-  assets.forEach((a, i) => {
-    table.innerHTML += `
-      <tr>
-        <td>${a.date}</td>
-        <td>${a.category}</td>
-        <td>${formatNumber(a.amount)}</td>
-        <td><button onclick="deleteRow(${i})">削除</button></td>
-      </tr>
-    `;
+  assets.forEach(a=>{
+    list.innerHTML += `<li>${a.name}：${format(a.amount)}円</li>`;
   });
+
+  const total = assets.reduce((s,a)=>s+a.amount,0);
+  document.getElementById("total").textContent = format(total);
+
+  drawChart();
 }
 
-// ===== 月集計 =====
-function groupByMonth(data) {
-  const result = {};
-  data.forEach(d => {
-    const m = d.date.slice(0,7);
-    result[m] = (result[m] || 0) + d.amount;
-  });
-  return result;
-}
+function drawChart(){
+  const labels = assets.map(a=>a.name);
+  const data = assets.map(a=>a.amount);
 
-// ===== 累積 =====
-function getCumulativeData(arr) {
-  let sum = 0;
-  return arr.map(v => {
-    sum += v;
-    return sum;
-  });
-}
+  if(window.chart) window.chart.destroy();
 
-// ===== グラフ =====
-function drawCharts() {
-  drawLineChart();
-  drawMonthlyChart();
-  drawDividendChart();
-}
-
-// 日別
-function drawLineChart() {
-  const sorted = [...assets].sort((a,b)=>new Date(a.date)-new Date(b.date));
-  const labels = sorted.map(a=>a.date);
-  const values = getCumulativeData(sorted.map(a=>a.amount));
-
-  if (window.chart1) window.chart1.destroy();
-
-  window.chart1 = new Chart(document.getElementById("chart1"), {
-    type: 'line',
+  window.chart = new Chart(document.getElementById("chart"), {
+    type: 'pie',
     data: {
       labels,
-      datasets:[{
-        label:'累積資産',
-        data:values
+      datasets: [{
+        data
       }]
-    },
-    options: {
-      plugins: {
-        tooltip: {
-          callbacks: {
-            label: ctx => formatNumber(ctx.parsed.y) + " 円"
-          }
-        }
-      }
     }
   });
 }
-
-// 月別
-function drawMonthlyChart() {
-  const grouped = groupByMonth(assets);
-  const labels = Object.keys(grouped).sort();
-  const monthly = labels.map(l=>grouped[l]);
-  const values = getCumulativeData(monthly);
-
-  if (window.chart2) window.chart2.destroy();
-
-  window.chart2 = new Chart(document.getElementById("chart2"), {
-    type: 'bar',
-    data: {
-      labels,
-      datasets:[{
-        label:'累積（月別）',
-        data:values
-      }]
-    },
-    options: {
-      plugins: {
-        tooltip: {
-          callbacks: {
-            label: ctx => formatNumber(ctx.parsed.y) + " 円"
-          }
-        }
-      }
-    }
-  });
-}
-
-// 配当
-function drawDividendChart() {
-  const grouped = groupByMonth(dividends);
-  const labels = Object.keys(grouped).sort();
-  const monthly = labels.map(l=>grouped[l]);
-  const values = getCumulativeData(monthly);
-
-  if (window.chart3) window.chart3.destroy();
-
-  window.chart3 = new Chart(document.getElementById("chart3"), {
-    type: 'line',
-    data: {
-      labels,
-      datasets:[{
-        label:'累積配当',
-        data:values
-      }]
-    },
-    options: {
-      plugins: {
-        tooltip: {
-          callbacks: {
-            label: ctx => formatNumber(ctx.parsed.y) + " 円"
-          }
-        }
-      }
-    }
-  });
-}
-
-// ===== 描画 =====
-function render() {
-  renderTable();
-  renderTotal();
-  drawCharts();
-}
-
-// 初期化
-window.onload = () => render();
-
 </script>
 
 </body>
