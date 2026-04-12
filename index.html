@@ -1,12 +1,11 @@
-console.log(typeof Chart);
 <!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>資産管理（完成版）</title>
+<title>資産管理（完全安定版）</title>
 
-<!-- Chart.js -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<!-- ✅ 安定版 Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
 body {
@@ -14,17 +13,14 @@ body {
   padding: 20px;
 }
 
-/* 入力 */
 input, button {
   margin: 5px;
   padding: 8px;
-  font-size: 14px;
 }
 
-/* グラフ領域（ここが超重要） */
-.chart-container {
-  width: 100%;
-  max-width: 400px;
+/* ✅ 強制サイズ確保 */
+.chart-box {
+  width: 300px;
   height: 300px;
   margin-top: 20px;
 }
@@ -38,7 +34,7 @@ canvas {
 
 <body>
 
-<h2>📊 資産管理（完成版）</h2>
+<h2>📊 資産管理（完全安定版）</h2>
 
 <input id="name" placeholder="資産の種類">
 <input id="amount" type="number" placeholder="金額">
@@ -48,17 +44,21 @@ canvas {
 
 <ul id="list"></ul>
 
-<div class="chart-container">
-  <canvas id="chart"></canvas>
+<div class="chart-box">
+  <!-- ✅ サイズ直指定 -->
+  <canvas id="chart" width="300" height="300"></canvas>
 </div>
 
 <script>
+// ===== データ =====
 let assets = [];
 
+// ===== カンマ =====
 function format(num){
   return num.toLocaleString();
 }
 
+// ===== 追加 =====
 function add(){
   const name = document.getElementById("name").value;
   const amount = Number(document.getElementById("amount").value);
@@ -69,6 +69,7 @@ function add(){
   render();
 }
 
+// ===== 描画 =====
 function render(){
   const list = document.getElementById("list");
   list.innerHTML = "";
@@ -83,7 +84,12 @@ function render(){
   drawChart();
 }
 
+// ===== グラフ =====
 function drawChart(){
+
+  // ✅ Chart.js読み込み確認（デバッグ）
+  console.log("Chart:", typeof Chart);
+
   const labels = assets.map(a=>a.name);
   const data = assets.map(a=>a.amount);
 
