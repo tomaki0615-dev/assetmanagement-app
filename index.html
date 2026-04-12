@@ -2,19 +2,42 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>資産管理</title>
+<title>資産管理（完成版）</title>
 
+<!-- Chart.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 
 <style>
-body { font-family: sans-serif; padding: 20px; }
-input, button { margin: 5px; padding: 5px; }
+body {
+  font-family: sans-serif;
+  padding: 20px;
+}
+
+/* 入力 */
+input, button {
+  margin: 5px;
+  padding: 8px;
+  font-size: 14px;
+}
+
+/* グラフ領域（ここが超重要） */
+.chart-container {
+  width: 100%;
+  max-width: 400px;
+  height: 300px;
+  margin-top: 20px;
+}
+
+canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
 </style>
 </head>
 
 <body>
 
-<h2>📊 資産管理（最小版）</h2>
+<h2>📊 資産管理（完成版）</h2>
 
 <input id="name" placeholder="資産の種類">
 <input id="amount" type="number" placeholder="金額">
@@ -24,7 +47,9 @@ input, button { margin: 5px; padding: 5px; }
 
 <ul id="list"></ul>
 
-<canvas id="chart"></canvas>
+<div class="chart-container">
+  <canvas id="chart"></canvas>
+</div>
 
 <script>
 let assets = [];
@@ -37,7 +62,7 @@ function add(){
   const name = document.getElementById("name").value;
   const amount = Number(document.getElementById("amount").value);
 
-  if(!name || !amount) return;
+  if(!name || !amount) return alert("入力してね");
 
   assets.push({name, amount});
   render();
@@ -70,6 +95,10 @@ function drawChart(){
       datasets: [{
         data
       }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false
     }
   });
 }
