@@ -2,27 +2,17 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>資産グラフチャレンジ</title>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<title>資産グラフ（確実表示版）</title>
 
 <style>
-body {
-  font-family: sans-serif;
-  padding: 20px;
-}
-
-/* グラフサイズ固定（超重要） */
-#chart {
-  width: 300px !important;
-  height: 300px !important;
-}
+body { font-family: sans-serif; padding:20px; }
+canvas { margin-top:20px; }
 </style>
 </head>
 
 <body>
 
-<h2>📊 資産グラフ（リスタート版）</h2>
+<h2>📊 資産グラフ（確実表示版）</h2>
 
 <input id="name" placeholder="資産名">
 <input id="amount" type="number" placeholder="金額">
@@ -32,12 +22,9 @@ body {
 
 <ul id="list"></ul>
 
-<canvas id="chart"></canvas>
+<canvas id="chart" width="300" height="300"></canvas>
 
 <script>
-alert(typeof Chart);
-  
-  // 初期データ（これ重要）
 let assets = [
   { name: "現金", amount: 100000 }
 ];
@@ -57,14 +44,13 @@ function add(){
 }
 
 function render(){
-  // リスト
   const list = document.getElementById("list");
   list.innerHTML = "";
+
   assets.forEach(a=>{
     list.innerHTML += `<li>${a.name}：${format(a.amount)}円</li>`;
   });
 
-  // 合計
   const total = assets.reduce((s,a)=>s+a.amount,0);
   document.getElementById("total").textContent = format(total);
 
@@ -72,29 +58,27 @@ function render(){
 }
 
 function drawChart(){
-  const labels = assets.map(a=>a.name);
-  const data = assets.map(a=>a.amount);
+  const canvas = document.getElementById("chart");
+  const ctx = canvas.getContext("2d");
 
-  if(window.chart) window.chart.destroy();
+  const total = assets.reduce((s,a)=>s+a.amount,0);
 
-  window.chart = new Chart(document.getElementById("chart"), {
-    type: "pie",
-    data: {
-      labels,
-      datasets: [{
-        data
-      }]
-    },
-    options: {
-      responsive: false
-    }
+  let start = 0;
+
+  assets.forEach((a, i)=>{
+    const slice = (a.amount / total) * 2 * Math.PI;
+
+    ctx.beginPath();
+    ctx.moveTo(150,150);
+    ctx.arc(150,150,150,start,start+slice);
+    ctx.fillStyle = `hsl(${i*100},70%,60%)`;
+    ctx.fill();
+
+    start += slice;
   });
 }
 
-// 🔥 初期描画（これが命）
-window.onload = function(){
-  render();
-};
+window.onload = render;
 </script>
 
 </body>
