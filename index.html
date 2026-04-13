@@ -2,12 +2,36 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>資産分析アプリ</title>
+<title>資産分析アプリ 完全版</title>
 
 <style>
 body { font-family: sans-serif; padding:20px; }
-input, button, select { margin:5px; padding:6px; }
-canvas { margin-top:20px; border:1px solid #ccc; }
+
+/* 入力 */
+input, button, select {
+  margin:5px;
+  padding:6px;
+}
+
+/* カテゴリボタン */
+.category-btn {
+  padding:6px 10px;
+  margin:3px;
+  border:1px solid #333;
+  background:#eee;
+  cursor:pointer;
+}
+
+.active {
+  background:#4CAF50;
+  color:white;
+}
+
+/* グラフ */
+canvas {
+  margin-top:20px;
+  border:1px solid #ccc;
+}
 </style>
 </head>
 
@@ -15,42 +39,112 @@ canvas { margin-top:20px; border:1px solid #ccc; }
 
 <h2>📊 資産分析アプリ</h2>
 
+<!-- カテゴリ作成 -->
+<input id="newCategory" placeholder="カテゴリ追加">
+<button onclick="addCategory()">追加</button>
+
+<div id="categoryList"></div>
+
+<hr>
+
 <input id="date" type="date">
-<input id="category" placeholder="カテゴリ（現金・株など）">
 <input id="amount" type="number" placeholder="金額">
-<button onclick="add()">記録</button>
+<button onclick="addRecord()">記録</button>
 
 <br>
 
-<select id="type" onchange="drawChart()">
-  <option value="bar">棒グラフ</option>
-  <option value="line">折れ線グラフ</option>
+<select id="graphType" onchange="drawChart()">
+  <option value="total">総額</option>
+  <option value="category">カテゴリ別</option>
 </select>
-
-<h3>📅 月別合計</h3>
-<ul id="monthly"></ul>
-
-<h3>🏷 カテゴリ別合計</h3>
-<ul id="categorySum"></ul>
 
 <ul id="list"></ul>
 
-<canvas id="chart" width="340" height="220"></canvas>
+<canvas id="chart" width="350" height="220"></canvas>
 
 <script>
+let categories = JSON.parse(localStorage.getItem("categories")) || ["現金"];
 let records = JSON.parse(localStorage.getItem("records")) || [];
 
-// ===== 追加 =====
-function add(){
+let selectedCategory = categories[0];
+
+// ===== カテゴリ追加 =====
+function addCategory(){
+  const name = document.getElementById("newCategory").value;
+  if(!name) return;
+
+  categories.push(name);
+  save();
+  renderCategories();
+}
+
+// ===== カテゴリ表示 =====
+function renderCategories(){
+  const div = document.getElementById("categoryList");
+  div.innerHTML = "";
+
+  categories.forEach((c,i)=>{
+    div.innerHTML += `
+      <button class="category-btn ${c===selectedCategory?'active':''}"
+        onclick="selectCategory('${c}')">${c}</button>
+      <button onclick="editCategory(${i})">✏️</button>
+      <button onclick="deleteCategory(${i})">❌</button>
+    `;
+  });
+}
+
+// ===== 選択 =====
+function selectCategory(c){
+  selectedCategory = c;
+  renderCategories();
+}
+
+// ===== 編集 =====
+function editCategory(i){
+  const newName = prompt("新しい名前", categories[i]);
+  if(!newName) return;
+
+  const old = categories[i];
+  categories[i] = newName;
+
+  // recordsも更新
+  records.forEach(r=>{
+    if(r.category === old) r.category = newName;
+  });
+
+  save();
+  render();
+}
+
+// ===== 削除 =====
+function deleteCategory(i){
+  const name = categories[i];
+
+  if(!confirm("削除する？")) return;
+
+  categories.splice(i,1);
+
+  // recordsも削除
+  records = records.filter(r=>r.category !== name);
+
+  save();
+  render();
+}
+
+// ===== 記録 =====
+function addRecord(){
   const date = document.getElementById("date").value;
-  const category = document.getElementById("category").value;
   const amount = Number(document.getElementById("amount").value);
 
-  if(!date || !category || !amount) return alert("入力してね");
+  if(!date || !amount) return;
 
-  records.push({ date, category, amount });
+  records.push({
+    date,
+    category: selectedCategory,
+    amount
+  });
 
-  records.sort((a,b)=> new Date(a.date) - new Date(b.date));
+  records.sort((a,b)=>new Date(a.date)-new Date(b.date));
 
   save();
   render();
@@ -58,14 +152,14 @@ function add(){
 
 // ===== 保存 =====
 function save(){
+  localStorage.setItem("categories", JSON.stringify(categories));
   localStorage.setItem("records", JSON.stringify(records));
 }
 
 // ===== 表示 =====
 function render(){
+  renderCategories();
   renderList();
-  renderMonthly();
-  renderCategory();
   drawChart();
 }
 
@@ -84,39 +178,6 @@ function renderList(){
   });
 }
 
-// ===== 月別 =====
-function renderMonthly(){
-  const monthly = {};
-
-  records.forEach(r=>{
-    const month = r.date.slice(0,7);
-    monthly[month] = (monthly[month] || 0) + r.amount;
-  });
-
-  const ul = document.getElementById("monthly");
-  ul.innerHTML = "";
-
-  for(let m in monthly){
-    ul.innerHTML += `<li>${m}：${monthly[m].toLocaleString()}円</li>`;
-  }
-}
-
-// ===== カテゴリ別 =====
-function renderCategory(){
-  const categorySum = {};
-
-  records.forEach(r=>{
-    categorySum[r.category] = (categorySum[r.category] || 0) + r.amount;
-  });
-
-  const ul = document.getElementById("categorySum");
-  ul.innerHTML = "";
-
-  for(let c in categorySum){
-    ul.innerHTML += `<li>${c}：${categorySum[c].toLocaleString()}円</li>`;
-  }
-}
-
 // ===== 削除 =====
 function del(i){
   records.splice(i,1);
@@ -133,50 +194,47 @@ function drawChart(){
 
   if(records.length === 0) return;
 
-  const type = document.getElementById("type").value;
+  const type = document.getElementById("graphType").value;
 
-  const max = Math.max(...records.map(r=>r.amount));
-  const barWidth = 20;
+  let dataMap = {};
+
+  if(type === "total"){
+    // 日付ごと合計
+    records.forEach(r=>{
+      dataMap[r.date] = (dataMap[r.date]||0) + r.amount;
+    });
+  }
+
+  if(type === "category"){
+    // カテゴリ合計
+    records.forEach(r=>{
+      dataMap[r.category] = (dataMap[r.category]||0) + r.amount;
+    });
+  }
+
+  const labels = Object.keys(dataMap);
+  const values = Object.values(dataMap);
+
+  const max = Math.max(...values);
+
+  const barWidth = 30;
   const gap = 10;
 
-  let prevX = 0;
-  let prevY = 0;
+  labels.forEach((label,i)=>{
+    const x = i*(barWidth+gap)+30;
+    const height = (values[i]/max)*150;
+    const y = 180-height;
 
-  records.forEach((r,i)=>{
-    const x = i * (barWidth + gap) + 30;
-    const height = (r.amount / max) * 150;
-    const y = 180 - height;
-
-    if(type === "bar"){
-      ctx.fillStyle = "#4CAF50";
-      ctx.fillRect(x, y, barWidth, height);
-    }
-
-    if(type === "line"){
-      if(i > 0){
-        ctx.beginPath();
-        ctx.moveTo(prevX, prevY);
-        ctx.lineTo(x, y);
-        ctx.strokeStyle = "#2196F3";
-        ctx.stroke();
-      }
-
-      ctx.beginPath();
-      ctx.arc(x, y, 3, 0, Math.PI*2);
-      ctx.fillStyle = "#2196F3";
-      ctx.fill();
-    }
+    ctx.fillStyle = "#4CAF50";
+    ctx.fillRect(x,y,barWidth,height);
 
     ctx.fillStyle = "#000";
     ctx.font = "10px sans-serif";
-    ctx.fillText(r.date.slice(5), x-5, 200);
-
-    prevX = x;
-    prevY = y;
+    ctx.fillText(label.slice(-5), x-5, 200);
   });
 }
 
-// 初期表示
+// 初期
 render();
 </script>
 
