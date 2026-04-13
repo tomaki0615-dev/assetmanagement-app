@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>資産分析アプリ</title>
+<title>資産アプリ</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
@@ -34,7 +34,6 @@ button {
   background: #4CAF50;
   color: white;
   border: none;
-  height: 44px;
 }
 
 /* カテゴリ */
@@ -53,17 +52,13 @@ button {
   padding: 6px 12px;
   border-radius: 20px;
   background: #eee;
-  border: 1px solid #ccc;
-  font-size: 13px;
 }
 
 .active {
   background: #4CAF50;
   color: white;
-  border: none;
 }
 
-/* 削除ボタン */
 .delete-btn {
   margin-left: 4px;
   background: red;
@@ -71,8 +66,26 @@ button {
   border-radius: 50%;
   width: 20px;
   height: 20px;
-  font-size: 12px;
   padding: 0;
+}
+
+/* グラフ */
+.chart-scroll {
+  overflow-x: auto;
+  position: relative;
+}
+
+canvas {
+  height: 260px;
+}
+
+.tooltip {
+  position: absolute;
+  background: black;
+  color: white;
+  padding: 6px;
+  border-radius: 6px;
+  display: none;
 }
 </style>
 </head>
@@ -87,47 +100,58 @@ button {
   <div id="categoryList"></div>
 </div>
 
+<div class="card">
+  <input id="date" type="date">
+  <input id="amount" type="number" placeholder="金額">
+  <button onclick="addRecord()">記録</button>
+</div>
+
+<div class="card">
+  <select id="graphType" onchange="drawChart()">
+    <option value="total">総額</option>
+    <option value="category">カテゴリ別</option>
+  </select>
+
+  <div class="chart-scroll">
+    <canvas id="chart"></canvas>
+    <div id="tooltip" class="tooltip"></div>
+  </div>
+</div>
+
 <script>
-let categories = JSON.parse(localStorage.getItem("categories")) || ["💴現金"];
+let categories = JSON.parse(localStorage.getItem("categories")) || ["現金"];
+let records = JSON.parse(localStorage.getItem("records")) || [];
 let selectedCategory = categories[0];
 
-// ===== 追加 =====
+// ===== カテゴリ =====
 function addCategory(){
   const input = document.getElementById("newCategory");
   const name = input.value.trim();
-
-  if(!name){
-    alert("カテゴリ名を入力してね");
-    return;
-  }
+  if(!name) return;
 
   if(categories.includes(name)){
-    alert("すでにあるよ");
+    alert("あるよ");
     return;
   }
 
   categories.push(name);
-  input.value = ""; // ←重要
+  input.value = "";
   save();
   render();
 }
 
-// ===== 削除 =====
 function deleteCategory(name){
-  if(!confirm(name + " を削除する？")) return;
+  if(!confirm("削除する？")) return;
 
-  categories = categories.filter(c => c !== name);
-
-  if(selectedCategory === name){
-    selectedCategory = categories[0] || "";
+  categories = categories.filter(c=>c!==name);
+  if(selectedCategory===name){
+    selectedCategory = categories[0];
   }
-
   save();
   render();
 }
 
-// ===== 描画 =====
-function render(){
+function renderCategories(){
   const div = document.getElementById("categoryList");
   div.innerHTML = "";
 
@@ -136,7 +160,6 @@ function render(){
       <div class="category-wrap">
         <button class="category-btn ${c===selectedCategory?'active':''}"
           onclick="selectCategory('${c}')">${c}</button>
-
         <button class="delete-btn"
           onclick="deleteCategory('${c}')">×</button>
       </div>
@@ -144,18 +167,130 @@ function render(){
   });
 }
 
-// ===== 選択 =====
 function selectCategory(c){
   selectedCategory = c;
+  drawChart();
+}
+
+// ===== 記録 =====
+function addRecord(){
+  const date = document.getElementById("date").value;
+  const amount = Number(document.getElementById("amount").value);
+  if(!date || !amount) return;
+
+  records.push({date, category:selectedCategory, amount});
+  records.sort((a,b)=>new Date(a.date)-new Date(b.date));
+
+  save();
   render();
 }
 
 // ===== 保存 =====
 function save(){
   localStorage.setItem("categories", JSON.stringify(categories));
+  localStorage.setItem("records", JSON.stringify(records));
 }
 
-// 初期表示
+// ===== グラフ =====
+function drawChart(){
+  const canvas = document.getElementById("chart");
+  const ctx = canvas.getContext("2d");
+
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr,dpr);
+
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  if(records.length===0) return;
+
+  let dateMap = {};
+  records.forEach(r=>{
+    if(!dateMap[r.date]) dateMap[r.date]=[];
+    dateMap[r.date].push(r);
+  });
+
+  const dates = Object.keys(dateMap);
+  let values = [];
+
+  const type = document.getElementById("graphType").value;
+
+  if(type==="total"){
+    values = dates.map(d =>
+      dateMap[d].reduce((sum,r)=>sum+r.amount,0)
+    );
+  }else{
+    values = dates.map(d =>
+      dateMap[d]
+        .filter(r=>r.category===selectedCategory)
+        .reduce((sum,r)=>sum+r.amount,0)
+    );
+  }
+
+  const max = Math.max(...values,1);
+  canvas.style.width = dates.length*60+"px";
+
+  let points=[];
+
+  // グリッド
+  for(let i=0;i<5;i++){
+    const y = 200 - (i/5)*180;
+    ctx.strokeStyle="#ddd";
+    ctx.beginPath();
+    ctx.moveTo(0,y);
+    ctx.lineTo(dates.length*60,y);
+    ctx.stroke();
+  }
+
+  values.forEach((v,i)=>{
+    const x=i*60+30;
+    const y=200-(v/max)*180;
+
+    points.push({x,y,value:v,date:dates[i]});
+
+    if(i>0){
+      ctx.beginPath();
+      ctx.moveTo(points[i-1].x,points[i-1].y);
+      ctx.lineTo(x,y);
+      ctx.strokeStyle="#4CAF50";
+      ctx.stroke();
+    }
+
+    ctx.beginPath();
+    ctx.arc(x,y,4,0,Math.PI*2);
+    ctx.fillStyle="#4CAF50";
+    ctx.fill();
+
+    if(i%2===0){
+      ctx.fillText(dates[i].slice(5).replace("-","/"),x-15,220);
+    }
+  });
+
+  // タップ
+  canvas.onclick=function(e){
+    const rect=canvas.getBoundingClientRect();
+    const x=e.clientX-rect.left;
+
+    let closest=points.reduce((a,b)=>
+      Math.abs(b.x-x)<Math.abs(a.x-x)?b:a
+    );
+
+    const tooltip=document.getElementById("tooltip");
+    tooltip.style.display="block";
+    tooltip.style.left=closest.x+"px";
+    tooltip.style.top=closest.y+"px";
+    tooltip.innerHTML=closest.value.toLocaleString()+"円";
+  }
+}
+
+// ===== 初期 =====
+function render(){
+  renderCategories();
+  drawChart();
+}
+
 render();
 </script>
 
