@@ -6,13 +6,8 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- 🔥 アイコン設定 -->
 <link rel="apple-touch-icon" href="icon.png">
-<link rel="icon" href="icon.png">
-
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="資産アプリ">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
 
 <style>
 body {
@@ -21,7 +16,6 @@ body {
   padding: 10px;
 }
 
-/* カード */
 .card {
   background: white;
   padding: 12px;
@@ -30,8 +24,7 @@ body {
   margin-bottom: 12px;
 }
 
-/* 入力 */
-input, select {
+input, select, button {
   width: 100%;
   padding: 10px;
   margin: 5px 0;
@@ -39,51 +32,46 @@ input, select {
   border: 1px solid #ddd;
 }
 
-/* ボタン */
 button {
-  padding: 10px;
-  border: none;
-  border-radius: 8px;
   background: #4CAF50;
   color: white;
-  width: 100%;
+  border: none;
 }
 
-/* 🔥 カテゴリ（チップ型） */
 #categoryList {
   display: flex;
   overflow-x: auto;
-  white-space: nowrap;
-  padding-bottom: 5px;
-}
-
-#categoryList::-webkit-scrollbar {
-  display: none;
 }
 
 .category-btn {
-  flex: 0 0 auto;
   padding: 6px 12px;
   margin-right: 6px;
   border-radius: 20px;
-  border: 1px solid #ccc;
   background: #eee;
-  font-size: 13px;
 }
 
 .active {
   background: #4CAF50;
   color: white;
-  border: none;
 }
 
-/* グラフ */
 .chart-scroll {
   overflow-x: auto;
+  position: relative;
 }
 
 canvas {
   height: 250px;
+}
+
+.tooltip {
+  position: absolute;
+  background: black;
+  color: white;
+  padding: 5px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  display: none;
 }
 </style>
 </head>
@@ -112,19 +100,12 @@ canvas {
 
   <div class="chart-scroll">
     <canvas id="chart"></canvas>
+    <div id="tooltip" class="tooltip"></div>
   </div>
 </div>
 
 <script>
-// ===== 初期カテゴリ =====
-let defaultCategories = ["💴現金","📈株式","🌱投資信託","₿仮想通貨","🏦年金"];
-
-let categories = JSON.parse(localStorage.getItem("categories"));
-if(!categories){
-  categories = defaultCategories;
-  localStorage.setItem("categories", JSON.stringify(categories));
-}
-
+let categories = JSON.parse(localStorage.getItem("categories")) || ["💴現金"];
 let records = JSON.parse(localStorage.getItem("records")) || [];
 let selectedCategory = categories[0];
 
@@ -132,16 +113,13 @@ let selectedCategory = categories[0];
 function addCategory(){
   const name = document.getElementById("newCategory").value;
   if(!name) return;
-
   categories.push(name);
-  save();
-  render();
+  save(); render();
 }
 
 function renderCategories(){
   const div = document.getElementById("categoryList");
   div.innerHTML = "";
-
   categories.forEach(c=>{
     div.innerHTML += `
       <button class="category-btn ${c===selectedCategory?'active':''}"
@@ -152,35 +130,25 @@ function renderCategories(){
 
 function selectCategory(c){
   selectedCategory = c;
-  render();
+  drawChart();
 }
 
 // ===== 記録 =====
 function addRecord(){
   const date = document.getElementById("date").value;
   const amount = Number(document.getElementById("amount").value);
-
   if(!date || !amount) return;
 
-  records.push({
-    date,
-    category: selectedCategory,
-    amount
-  });
-
+  records.push({date, category:selectedCategory, amount});
   records.sort((a,b)=>new Date(a.date)-new Date(b.date));
-
-  save();
-  render();
+  save(); render();
 }
 
-// ===== 保存 =====
 function save(){
   localStorage.setItem("categories", JSON.stringify(categories));
   localStorage.setItem("records", JSON.stringify(records));
 }
 
-// ===== 描画 =====
 function render(){
   renderCategories();
   drawChart();
@@ -191,6 +159,12 @@ function drawChart(){
   const canvas = document.getElementById("chart");
   const ctx = canvas.getContext("2d");
 
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
   if(records.length === 0) return;
@@ -198,14 +172,12 @@ function drawChart(){
   const type = document.getElementById("graphType").value;
 
   let dateMap = {};
-
   records.forEach(r=>{
     if(!dateMap[r.date]) dateMap[r.date] = [];
     dateMap[r.date].push(r);
   });
 
   const dates = Object.keys(dateMap);
-
   let values = [];
 
   if(type === "total"){
@@ -224,40 +196,68 @@ function drawChart(){
 
   const max = Math.max(...values,1);
 
-  // 横長対応
-  canvas.width = dates.length * 60;
+  canvas.style.width = (dates.length * 60) + "px";
 
-  let prevX = 0;
-  let prevY = 0;
+  let points = [];
 
-  dates.forEach((date,i)=>{
-    const x = i * 60 + 30;
-    const y = 220 - (values[i]/max)*180;
+  // グリッド線
+  for(let i=0;i<5;i++){
+    const y = 200 - (i/5)*180;
+    ctx.strokeStyle = "#ddd";
+    ctx.beginPath();
+    ctx.moveTo(0,y);
+    ctx.lineTo(dates.length*60,y);
+    ctx.stroke();
+  }
 
-    if(i > 0){
+  values.forEach((v,i)=>{
+    const x = i*60 + 30;
+    const y = 200 - (v/max)*180;
+    points.push({x,y,value:v,date:dates[i]});
+
+    if(i>0){
       ctx.beginPath();
-      ctx.moveTo(prevX, prevY);
-      ctx.lineTo(x, y);
-      ctx.strokeStyle = "#4CAF50";
-      ctx.lineWidth = 2;
+      ctx.moveTo(points[i-1].x, points[i-1].y);
+      ctx.lineTo(x,y);
+      ctx.strokeStyle="#4CAF50";
+      ctx.lineWidth=2;
       ctx.stroke();
     }
 
     ctx.beginPath();
-    ctx.arc(x, y, 4, 0, Math.PI*2);
-    ctx.fillStyle = "#4CAF50";
+    ctx.arc(x,y,4,0,Math.PI*2);
+    ctx.fillStyle="#4CAF50";
     ctx.fill();
 
-    ctx.fillStyle = "#000";
-    ctx.font = "10px sans-serif";
-    ctx.fillText(date.slice(5), x-10, 240);
-
-    prevX = x;
-    prevY = y;
+    // 日付間引き
+    if(i%2===0){
+      const label = dates[i].slice(5).replace("-","/");
+      ctx.fillStyle="#000";
+      ctx.font="10px sans-serif";
+      ctx.fillText(label,x-15,220);
+    }
   });
+
+  // タップ表示
+  canvas.onclick = function(e){
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+
+    let closest = points.reduce((a,b)=>
+      Math.abs(b.x-x) < Math.abs(a.x-x) ? b : a
+    );
+
+    const tooltip = document.getElementById("tooltip");
+    tooltip.style.display = "block";
+    tooltip.style.left = closest.x + "px";
+    tooltip.style.top = closest.y + "px";
+    tooltip.innerHTML = `
+      ${closest.date}<br>
+      ${closest.value.toLocaleString()}円
+    `;
+  }
 }
 
-// 初期表示
 render();
 </script>
 
