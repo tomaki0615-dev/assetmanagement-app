@@ -1,13 +1,15 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<link rel="apple-touch-icon" href="icon.png">
-<link rel="icon" href="icon.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta charset="UTF-8">
 <title>資産アプリ</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- 🔥 ホーム画面アイコン -->
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="資産アプリ">
 
 <style>
 * { box-sizing: border-box; }
@@ -48,9 +50,22 @@ button {
 }
 
 #date { flex: 1; }
-#amount { flex: 2; }
 
-/* ===== カテゴリ ===== */
+/* 金額＋クリア */
+.amount-wrap {
+  display: flex;
+  gap: 6px;
+  flex: 2;
+}
+
+#clearBtn {
+  width: 50px;
+  background: #ddd;
+  color: #333;
+  padding: 0;
+}
+
+/* カテゴリ */
 #categoryList {
   display: flex;
   overflow-x: auto;
@@ -63,7 +78,6 @@ button {
   align-items: center;
 }
 
-/* 🔥 通常状態 */
 .category-btn {
   padding: 8px 12px;
   border-radius: 8px;
@@ -75,14 +89,13 @@ button {
   color: #333;
 }
 
-/* 🔥 active（必ず勝つように強めに） */
 .category-btn.active {
   background: #4CAF50 !important;
   color: #fff !important;
   border: 1px solid #4CAF50 !important;
 }
 
-/* 削除ボタン（控えめ） */
+/* 削除ボタン */
 .delete-btn {
   margin-left: 4px;
   background: #ddd;
@@ -93,10 +106,6 @@ button {
   padding: 0;
   font-size: 12px;
   border: none;
-}
-
-.delete-btn:active {
-  background: #bbb;
 }
 
 /* 履歴 */
@@ -148,7 +157,11 @@ canvas {
 <div class="card">
   <div class="row">
     <input id="date" type="date">
-    <input id="amount" type="number" placeholder="金額">
+
+    <div class="amount-wrap">
+      <input id="amount" type="number" placeholder="金額">
+      <button id="clearBtn">0</button>
+    </div>
   </div>
   <button onclick="addRecord()">記録</button>
 </div>
@@ -177,9 +190,16 @@ let categories = JSON.parse(localStorage.getItem("categories")) || ["現金"];
 let records = JSON.parse(localStorage.getItem("records")) || [];
 let selectedCategory = categories[0];
 
-// 今日をデフォルト
+// 今日デフォルト
 document.getElementById("date").value =
   new Date().toISOString().split("T")[0];
+
+// ===== クリアボタン =====
+document.getElementById("clearBtn").onclick = () => {
+  const input = document.getElementById("amount");
+  input.value = "";
+  input.focus();
+};
 
 // ===== カテゴリ =====
 function addCategory(){
@@ -206,7 +226,7 @@ function deleteCategory(name){
 
 function selectCategory(c){
   selectedCategory = c;
-  render(); // ←これが肝
+  render();
 }
 
 function renderCategories(){
@@ -219,13 +239,8 @@ function renderCategories(){
 
     const btn = document.createElement("button");
     btn.textContent = c;
-
-    // 🔥 classを確実にセット
-    btn.className = "category-btn";
-    if(c === selectedCategory){
-      btn.classList.add("active");
-    }
-
+    btn.className="category-btn";
+    if(c === selectedCategory) btn.classList.add("active");
     btn.onclick = () => selectCategory(c);
 
     const del = document.createElement("button");
@@ -326,17 +341,7 @@ function drawChart(){
   values.forEach((v,i)=>{
     const x=i*60+30;
     const y=200-(v/max)*180;
-// 🔥 日付ラベル表示（間引きあり）
-if(i % 2 === 0){
-  ctx.fillStyle = "#666";
-  ctx.font = "10px sans-serif";
-  ctx.textAlign = "center";
 
-  // MM/DD形式に
-  const label = dates[i].slice(5).replace("-", "/");
-
-  ctx.fillText(label, x, 230);
-}
     points.push({x,y,value:v,date:dates[i]});
 
     if(i>0){
@@ -351,6 +356,15 @@ if(i % 2 === 0){
     ctx.arc(x,y,4,0,Math.PI*2);
     ctx.fillStyle="#4CAF50";
     ctx.fill();
+
+    // 🔥 日付表示
+    if(i % 2 === 0){
+      ctx.fillStyle="#666";
+      ctx.font="10px sans-serif";
+      ctx.textAlign="center";
+      const label = dates[i].slice(5).replace("-","/");
+      ctx.fillText(label, x, 230);
+    }
   });
 
   canvas.onclick=function(e){
