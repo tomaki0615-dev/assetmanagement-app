@@ -15,6 +15,10 @@ body {
   margin: 0;
 }
 
+h2 {
+  margin-bottom: 10px;
+}
+
 .card {
   background: white;
   padding: 16px;
@@ -28,6 +32,7 @@ input, select, button {
   margin: 6px 0;
   border-radius: 10px;
   border: 1px solid #ddd;
+  font-size: 16px;
 }
 
 button {
@@ -52,9 +57,11 @@ button {
   padding: 6px 12px;
   border-radius: 20px;
   background: #eee;
+  border: 1px solid #ccc;
+  font-size: 13px;
 }
 
-.active {
+.category-btn.active {
   background: #4CAF50;
   color: white;
 }
@@ -67,6 +74,7 @@ button {
   width: 20px;
   height: 20px;
   padding: 0;
+  font-size: 12px;
 }
 
 /* グラフ */
@@ -85,6 +93,7 @@ canvas {
   color: white;
   padding: 6px;
   border-radius: 6px;
+  font-size: 12px;
   display: none;
 }
 </style>
@@ -96,18 +105,18 @@ canvas {
 
 <div class="card">
   <input id="newCategory" placeholder="カテゴリ追加">
-  <button onclick="addCategory()">追加</button>
+  <button id="addCategoryBtn">追加</button>
   <div id="categoryList"></div>
 </div>
 
 <div class="card">
   <input id="date" type="date">
   <input id="amount" type="number" placeholder="金額">
-  <button onclick="addRecord()">記録</button>
+  <button id="addRecordBtn">記録</button>
 </div>
 
 <div class="card">
-  <select id="graphType" onchange="drawChart()">
+  <select id="graphType">
     <option value="total">総額</option>
     <option value="category">カテゴリ別</option>
   </select>
@@ -123,67 +132,77 @@ let categories = JSON.parse(localStorage.getItem("categories")) || ["現金"];
 let records = JSON.parse(localStorage.getItem("records")) || [];
 let selectedCategory = categories[0];
 
-// ===== カテゴリ =====
-function addCategory(){
+// ===== カテゴリ追加 =====
+document.getElementById("addCategoryBtn").onclick = () => {
   const input = document.getElementById("newCategory");
   const name = input.value.trim();
-  if(!name) return;
 
-  if(categories.includes(name)){
-    alert("あるよ");
-    return;
-  }
+  if(!name) return alert("入力してね");
+  if(categories.includes(name)) return alert("もうある");
 
   categories.push(name);
   input.value = "";
   save();
   render();
-}
+};
 
+// ===== カテゴリ削除 =====
 function deleteCategory(name){
-  if(!confirm("削除する？")) return;
+  if(!confirm(name + "削除する？")) return;
 
-  categories = categories.filter(c=>c!==name);
-  if(selectedCategory===name){
-    selectedCategory = categories[0];
+  categories = categories.filter(c => c !== name);
+
+  if(selectedCategory === name){
+    selectedCategory = categories[0] || "";
   }
+
   save();
   render();
 }
 
+// ===== カテゴリ描画（超重要修正版） =====
 function renderCategories(){
   const div = document.getElementById("categoryList");
   div.innerHTML = "";
 
   categories.forEach(c=>{
-    div.innerHTML += `
-      <div class="category-wrap">
-        <button class="category-btn ${c===selectedCategory?'active':''}"
-          onclick="selectCategory('${c}')">${c}</button>
-        <button class="delete-btn"
-          onclick="deleteCategory('${c}')">×</button>
-      </div>
-    `;
+    const wrap = document.createElement("div");
+    wrap.className = "category-wrap";
+
+    const btn = document.createElement("button");
+    btn.className = "category-btn";
+    if(c === selectedCategory) btn.classList.add("active");
+    btn.textContent = c;
+
+    btn.onclick = () => {
+      selectedCategory = c;
+      render();
+    };
+
+    const del = document.createElement("button");
+    del.className = "delete-btn";
+    del.textContent = "×";
+    del.onclick = () => deleteCategory(c);
+
+    wrap.appendChild(btn);
+    wrap.appendChild(del);
+    div.appendChild(wrap);
   });
 }
 
-function selectCategory(c){
-  selectedCategory = c;
-  drawChart();
-}
-
 // ===== 記録 =====
-function addRecord(){
+document.getElementById("addRecordBtn").onclick = () => {
   const date = document.getElementById("date").value;
   const amount = Number(document.getElementById("amount").value);
-  if(!date || !amount) return;
+
+  if(!date || !amount) return alert("入力してね");
 
   records.push({date, category:selectedCategory, amount});
   records.sort((a,b)=>new Date(a.date)-new Date(b.date));
 
   save();
   render();
-}
+};
 
 // ===== 保存 =====
 function save(){
@@ -192,6 +211,8 @@ function save(){
 }
 
 // ===== グラフ =====
+document.getElementById("graphType").onchange = drawChart;
+
 function drawChart(){
   const canvas = document.getElementById("chart");
   const ctx = canvas.getContext("2d");
@@ -204,11 +225,11 @@ function drawChart(){
 
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  if(records.length===0) return;
+  if(records.length === 0) return;
 
   let dateMap = {};
   records.forEach(r=>{
-    if(!dateMap[r.date]) dateMap[r.date]=[];
+    if(!dateMap[r.date]) dateMap[r.date] = [];
     dateMap[r.date].push(r);
   });
 
@@ -217,27 +238,27 @@ function drawChart(){
 
   const type = document.getElementById("graphType").value;
 
-  if(type==="total"){
+  if(type === "total"){
     values = dates.map(d =>
       dateMap[d].reduce((sum,r)=>sum+r.amount,0)
     );
   }else{
     values = dates.map(d =>
       dateMap[d]
-        .filter(r=>r.category===selectedCategory)
+        .filter(r=>r.category === selectedCategory)
         .reduce((sum,r)=>sum+r.amount,0)
     );
   }
 
   const max = Math.max(...values,1);
-  canvas.style.width = dates.length*60+"px";
+  canvas.style.width = (dates.length * 60) + "px";
 
-  let points=[];
+  let points = [];
 
   // グリッド
   for(let i=0;i<5;i++){
     const y = 200 - (i/5)*180;
-    ctx.strokeStyle="#ddd";
+    ctx.strokeStyle = "#ddd";
     ctx.beginPath();
     ctx.moveTo(0,y);
     ctx.lineTo(dates.length*60,y);
@@ -245,16 +266,17 @@ function drawChart(){
   }
 
   values.forEach((v,i)=>{
-    const x=i*60+30;
-    const y=200-(v/max)*180;
+    const x = i*60 + 30;
+    const y = 200 - (v/max)*180;
 
     points.push({x,y,value:v,date:dates[i]});
 
     if(i>0){
       ctx.beginPath();
-      ctx.moveTo(points[i-1].x,points[i-1].y);
+      ctx.moveTo(points[i-1].x, points[i-1].y);
       ctx.lineTo(x,y);
       ctx.strokeStyle="#4CAF50";
+      ctx.lineWidth=2;
       ctx.stroke();
     }
 
@@ -264,28 +286,33 @@ function drawChart(){
     ctx.fill();
 
     if(i%2===0){
-      ctx.fillText(dates[i].slice(5).replace("-","/"),x-15,220);
+      ctx.fillStyle="#000";
+      ctx.font="10px sans-serif";
+      ctx.fillText(dates[i].slice(5).replace("-","/"), x-15, 220);
     }
   });
 
-  // タップ
-  canvas.onclick=function(e){
-    const rect=canvas.getBoundingClientRect();
-    const x=e.clientX-rect.left;
+  // タップ表示
+  canvas.onclick = function(e){
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
 
-    let closest=points.reduce((a,b)=>
-      Math.abs(b.x-x)<Math.abs(a.x-x)?b:a
+    let closest = points.reduce((a,b)=>
+      Math.abs(b.x-x) < Math.abs(a.x-x) ? b : a
     );
 
-    const tooltip=document.getElementById("tooltip");
-    tooltip.style.display="block";
-    tooltip.style.left=closest.x+"px";
-    tooltip.style.top=closest.y+"px";
-    tooltip.innerHTML=closest.value.toLocaleString()+"円";
+    const tooltip = document.getElementById("tooltip");
+    tooltip.style.display = "block";
+    tooltip.style.left = closest.x + "px";
+    tooltip.style.top = closest.y + "px";
+    tooltip.innerHTML = `
+      ${closest.date}<br>
+      ${closest.value.toLocaleString()}円
+    `;
   }
 }
 
-// ===== 初期 =====
+// ===== 初期表示 =====
 function render(){
   renderCategories();
   drawChart();
