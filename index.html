@@ -11,6 +11,7 @@ body {
   padding: 10px;
 }
 
+/* カード */
 .card {
   background: white;
   padding: 12px;
@@ -19,6 +20,7 @@ body {
   margin-bottom: 12px;
 }
 
+/* 入力 */
 input, select {
   width: 100%;
   padding: 10px;
@@ -27,6 +29,7 @@ input, select {
   border: 1px solid #ddd;
 }
 
+/* ボタン */
 button {
   padding: 10px;
   border: none;
@@ -36,32 +39,41 @@ button {
   width: 100%;
 }
 
+/* 🔥 カテゴリUI（改善版） */
+#categoryList {
+  display: flex;
+  overflow-x: auto;
+  white-space: nowrap;
+  padding-bottom: 5px;
+}
+
+#categoryList::-webkit-scrollbar {
+  display: none;
+}
+
 .category-btn {
-  padding: 6px 10px;
-  margin: 3px;
+  flex: 0 0 auto;
+  padding: 6px 12px;
+  margin-right: 6px;
   border-radius: 20px;
   border: 1px solid #ccc;
   background: #eee;
+  font-size: 13px;
 }
 
 .active {
   background: #4CAF50;
   color: white;
+  border: none;
 }
 
-/* 🔥 横スクロールグラフ */
+/* グラフ */
 .chart-scroll {
   overflow-x: auto;
 }
 
 canvas {
   height: 250px;
-}
-
-/* iPhoneっぽい余白 */
-h2 {
-  text-align: center;
-  margin-bottom: 10px;
 }
 </style>
 </head>
@@ -94,6 +106,7 @@ h2 {
 </div>
 
 <script>
+// ===== 初期カテゴリ =====
 let defaultCategories = ["💴現金","📈株式","🌱投資信託","₿仮想通貨","🏦年金"];
 
 let categories = JSON.parse(localStorage.getItem("categories"));
@@ -174,7 +187,6 @@ function drawChart(){
 
   const type = document.getElementById("graphType").value;
 
-  // 🔥 日付ベースで統一
   let dateMap = {};
 
   records.forEach(r=>{
@@ -202,7 +214,7 @@ function drawChart(){
 
   const max = Math.max(...values,1);
 
-  // 🔥 横長にする
+  // 横長対応
   canvas.width = dates.length * 60;
 
   let prevX = 0;
@@ -235,7 +247,7 @@ function drawChart(){
   });
 }
 
-// 初期
+// 初期表示
 render();
 </script>
 
