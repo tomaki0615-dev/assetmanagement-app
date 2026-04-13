@@ -15,10 +15,6 @@ body {
   margin: 0;
 }
 
-h2 {
-  margin-bottom: 10px;
-}
-
 .card {
   background: white;
   padding: 16px;
@@ -41,11 +37,26 @@ button {
   border: none;
 }
 
+/* 🔥 日付コンパクト */
+.date-row {
+  display: flex;
+  gap: 8px;
+}
+
+#date {
+  flex: 1;
+}
+
+#amount {
+  flex: 2;
+}
+
 /* カテゴリ */
 #categoryList {
   display: flex;
   overflow-x: auto;
   gap: 6px;
+  margin-bottom: 10px;
 }
 
 .category-wrap {
@@ -104,14 +115,20 @@ canvas {
 <h2>📊 資産アプリ</h2>
 
 <div class="card">
+  <!-- 🔥 ①カテゴリボタンを上に -->
+  <div id="categoryList"></div>
+
+  <!-- 🔥 ②入力欄を下に -->
   <input id="newCategory" placeholder="カテゴリ追加">
   <button id="addCategoryBtn">追加</button>
-  <div id="categoryList"></div>
 </div>
 
 <div class="card">
-  <input id="date" type="date">
-  <input id="amount" type="number" placeholder="金額">
+  <!-- 🔥 日付＋金額 横並び -->
+  <div class="date-row">
+    <input id="date" type="date">
+    <input id="amount" type="number" placeholder="金額">
+  </div>
   <button id="addRecordBtn">記録</button>
 </div>
 
@@ -132,6 +149,9 @@ let categories = JSON.parse(localStorage.getItem("categories")) || ["現金"];
 let records = JSON.parse(localStorage.getItem("records")) || [];
 let selectedCategory = categories[0];
 
+// ===== 🔥 今日をデフォルト =====
+document.getElementById("date").value = new Date().toISOString().split("T")[0];
+
 // ===== カテゴリ追加 =====
 document.getElementById("addCategoryBtn").onclick = () => {
   const input = document.getElementById("newCategory");
@@ -146,12 +166,11 @@ document.getElementById("addCategoryBtn").onclick = () => {
   render();
 };
 
-// ===== カテゴリ削除 =====
+// ===== 削除 =====
 function deleteCategory(name){
-  if(!confirm(name + "削除する？")) return;
+  if(!confirm("削除する？")) return;
 
   categories = categories.filter(c => c !== name);
-
   if(selectedCategory === name){
     selectedCategory = categories[0] || "";
   }
@@ -160,14 +179,13 @@ function deleteCategory(name){
   render();
 }
 
-// ===== カテゴリ描画（超重要修正版） =====
+// ===== 描画 =====
 function renderCategories(){
   const div = document.getElementById("categoryList");
   div.innerHTML = "";
 
   categories.forEach(c=>{
     const wrap = document.createElement("div");
-    wrap.className = "category-wrap";
 
     const btn = document.createElement("button");
     btn.className = "category-btn";
@@ -210,9 +228,7 @@ function save(){
   localStorage.setItem("records", JSON.stringify(records));
 }
 
-// ===== グラフ =====
-document.getElementById("graphType").onchange = drawChart;
-
+// ===== グラフ（そのまま） =====
 function drawChart(){
   const canvas = document.getElementById("chart");
   const ctx = canvas.getContext("2d");
@@ -255,7 +271,6 @@ function drawChart(){
 
   let points = [];
 
-  // グリッド
   for(let i=0;i<5;i++){
     const y = 200 - (i/5)*180;
     ctx.strokeStyle = "#ddd";
@@ -276,7 +291,6 @@ function drawChart(){
       ctx.moveTo(points[i-1].x, points[i-1].y);
       ctx.lineTo(x,y);
       ctx.strokeStyle="#4CAF50";
-      ctx.lineWidth=2;
       ctx.stroke();
     }
 
@@ -286,13 +300,10 @@ function drawChart(){
     ctx.fill();
 
     if(i%2===0){
-      ctx.fillStyle="#000";
-      ctx.font="10px sans-serif";
       ctx.fillText(dates[i].slice(5).replace("-","/"), x-15, 220);
     }
   });
 
-  // タップ表示
   canvas.onclick = function(e){
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -312,7 +323,8 @@ function drawChart(){
   }
 }
 
-// ===== 初期表示 =====
+document.getElementById("graphType").onchange = drawChart;
+
 function render(){
   renderCategories();
   drawChart();
