@@ -3,19 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <title>資産分析アプリ</title>
-
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- アイコン -->
-<link rel="apple-touch-icon" href="icon.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-
 <style>
-
-/* 🔥 はみ出し完全防止（最重要） */
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 body {
   font-family: -apple-system;
@@ -24,27 +15,21 @@ body {
   margin: 0;
 }
 
-/* カード */
 .card {
   background: white;
   padding: 16px;
   border-radius: 14px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
   margin-bottom: 14px;
 }
 
-/* 入力・ボタン */
 input, select, button {
   width: 100%;
-  max-width: 100%;
   padding: 10px;
   margin: 6px 0;
   border-radius: 10px;
   border: 1px solid #ddd;
-  font-size: 16px;
 }
 
-/* ボタン */
 button {
   background: #4CAF50;
   color: white;
@@ -57,15 +42,14 @@ button {
   display: flex;
   overflow-x: auto;
   gap: 6px;
-  margin-top: 8px;
 }
 
-#categoryList::-webkit-scrollbar {
-  display: none;
+.category-wrap {
+  display: flex;
+  align-items: center;
 }
 
 .category-btn {
-  flex: 0 0 auto;
   padding: 6px 12px;
   border-radius: 20px;
   background: #eee;
@@ -79,27 +63,17 @@ button {
   border: none;
 }
 
-/* グラフ */
-.chart-scroll {
-  overflow-x: auto;
-  position: relative;
-}
-
-canvas {
-  height: 260px;
-}
-
-/* ツールチップ */
-.tooltip {
-  position: absolute;
-  background: black;
+/* 削除ボタン */
+.delete-btn {
+  margin-left: 4px;
+  background: red;
   color: white;
-  padding: 6px 8px;
-  border-radius: 6px;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
   font-size: 12px;
-  display: none;
+  padding: 0;
 }
-
 </style>
 </head>
 
@@ -113,185 +87,76 @@ canvas {
   <div id="categoryList"></div>
 </div>
 
-<div class="card">
-  <input id="date" type="date">
-  <input id="amount" type="number" placeholder="金額">
-  <button onclick="addRecord()">記録</button>
-</div>
-
-<div class="card">
-  <select id="graphType" onchange="drawChart()">
-    <option value="total">総額推移</option>
-    <option value="category">カテゴリ別推移</option>
-  </select>
-
-  <div class="chart-scroll">
-    <canvas id="chart"></canvas>
-    <div id="tooltip" class="tooltip"></div>
-  </div>
-</div>
-
 <script>
-
 let categories = JSON.parse(localStorage.getItem("categories")) || ["💴現金"];
-let records = JSON.parse(localStorage.getItem("records")) || [];
 let selectedCategory = categories[0];
 
-// ===== カテゴリ =====
+// ===== 追加 =====
 function addCategory(){
-  const name = document.getElementById("newCategory").value;
-  if(!name) return;
+  const input = document.getElementById("newCategory");
+  const name = input.value.trim();
+
+  if(!name){
+    alert("カテゴリ名を入力してね");
+    return;
+  }
+
+  if(categories.includes(name)){
+    alert("すでにあるよ");
+    return;
+  }
+
   categories.push(name);
-  save(); render();
+  input.value = ""; // ←重要
+  save();
+  render();
 }
 
-function renderCategories(){
+// ===== 削除 =====
+function deleteCategory(name){
+  if(!confirm(name + " を削除する？")) return;
+
+  categories = categories.filter(c => c !== name);
+
+  if(selectedCategory === name){
+    selectedCategory = categories[0] || "";
+  }
+
+  save();
+  render();
+}
+
+// ===== 描画 =====
+function render(){
   const div = document.getElementById("categoryList");
   div.innerHTML = "";
+
   categories.forEach(c=>{
     div.innerHTML += `
-      <button class="category-btn ${c===selectedCategory?'active':''}"
-        onclick="selectCategory('${c}')">${c}</button>
+      <div class="category-wrap">
+        <button class="category-btn ${c===selectedCategory?'active':''}"
+          onclick="selectCategory('${c}')">${c}</button>
+
+        <button class="delete-btn"
+          onclick="deleteCategory('${c}')">×</button>
+      </div>
     `;
   });
 }
 
+// ===== 選択 =====
 function selectCategory(c){
   selectedCategory = c;
-  drawChart();
+  render();
 }
 
-// ===== 記録 =====
-function addRecord(){
-  const date = document.getElementById("date").value;
-  const amount = Number(document.getElementById("amount").value);
-  if(!date || !amount) return;
-
-  records.push({date, category:selectedCategory, amount});
-  records.sort((a,b)=>new Date(a.date)-new Date(b.date));
-
-  save(); render();
-}
-
+// ===== 保存 =====
 function save(){
   localStorage.setItem("categories", JSON.stringify(categories));
-  localStorage.setItem("records", JSON.stringify(records));
-}
-
-function render(){
-  renderCategories();
-  drawChart();
-}
-
-// ===== グラフ =====
-function drawChart(){
-  const canvas = document.getElementById("chart");
-  const ctx = canvas.getContext("2d");
-
-  // 🔥 Retina対応
-  const dpr = window.devicePixelRatio || 1;
-  const rect = canvas.getBoundingClientRect();
-  canvas.width = rect.width * dpr;
-  canvas.height = rect.height * dpr;
-  ctx.scale(dpr, dpr);
-
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-
-  if(records.length === 0) return;
-
-  const type = document.getElementById("graphType").value;
-
-  let dateMap = {};
-  records.forEach(r=>{
-    if(!dateMap[r.date]) dateMap[r.date] = [];
-    dateMap[r.date].push(r);
-  });
-
-  const dates = Object.keys(dateMap);
-  let values = [];
-
-  if(type === "total"){
-    values = dates.map(d =>
-      dateMap[d].reduce((sum,r)=>sum+r.amount,0)
-    );
-  }
-
-  if(type === "category"){
-    values = dates.map(d =>
-      dateMap[d]
-        .filter(r=>r.category === selectedCategory)
-        .reduce((sum,r)=>sum+r.amount,0)
-    );
-  }
-
-  const max = Math.max(...values,1);
-
-  canvas.style.width = (dates.length * 60) + "px";
-
-  let points = [];
-
-  // グリッド線
-  for(let i=0;i<5;i++){
-    const y = 200 - (i/5)*180;
-    ctx.strokeStyle = "#ddd";
-    ctx.beginPath();
-    ctx.moveTo(0,y);
-    ctx.lineTo(dates.length*60,y);
-    ctx.stroke();
-  }
-
-  values.forEach((v,i)=>{
-    const x = i*60 + 30;
-    const y = 200 - (v/max)*180;
-
-    points.push({x,y,value:v,date:dates[i]});
-
-    if(i>0){
-      ctx.beginPath();
-      ctx.moveTo(points[i-1].x, points[i-1].y);
-      ctx.lineTo(x,y);
-      ctx.strokeStyle="#4CAF50";
-      ctx.lineWidth=2;
-      ctx.stroke();
-    }
-
-    ctx.beginPath();
-    ctx.arc(x,y,4,0,Math.PI*2);
-    ctx.fillStyle="#4CAF50";
-    ctx.fill();
-
-    // 日付間引き
-    if(i%2===0){
-      const label = dates[i].slice(5).replace("-","/");
-      ctx.fillStyle="#000";
-      ctx.font="10px sans-serif";
-      ctx.fillText(label,x-15,220);
-    }
-  });
-
-  // タップで値表示
-  canvas.onclick = function(e){
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-
-    let closest = points.reduce((a,b)=>
-      Math.abs(b.x-x) < Math.abs(a.x-x) ? b : a
-    );
-
-    const tooltip = document.getElementById("tooltip");
-    tooltip.style.display = "block";
-    tooltip.style.left = closest.x + "px";
-    tooltip.style.top = closest.y + "px";
-    tooltip.innerHTML = `
-      ${closest.date}<br>
-      ${closest.value.toLocaleString()}円
-    `;
-  }
 }
 
 // 初期表示
 render();
-
 </script>
 
 </body>
