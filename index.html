@@ -326,7 +326,17 @@ function drawChart(){
   values.forEach((v,i)=>{
     const x=i*60+30;
     const y=200-(v/max)*180;
+// 🔥 日付ラベル表示（間引きあり）
+if(i % 2 === 0){
+  ctx.fillStyle = "#666";
+  ctx.font = "10px sans-serif";
+  ctx.textAlign = "center";
 
+  // MM/DD形式に
+  const label = dates[i].slice(5).replace("-", "/");
+
+  ctx.fillText(label, x, 230);
+}
     points.push({x,y,value:v,date:dates[i]});
 
     if(i>0){
