@@ -2,83 +2,182 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>資産グラフ（確実表示版）</title>
+<title>資産分析アプリ</title>
 
 <style>
 body { font-family: sans-serif; padding:20px; }
-canvas { margin-top:20px; }
+input, button, select { margin:5px; padding:6px; }
+canvas { margin-top:20px; border:1px solid #ccc; }
 </style>
 </head>
 
 <body>
 
-<h2>📊 資産グラフ（確実表示版）</h2>
+<h2>📊 資産分析アプリ</h2>
 
-<input id="name" placeholder="資産名">
+<input id="date" type="date">
+<input id="category" placeholder="カテゴリ（現金・株など）">
 <input id="amount" type="number" placeholder="金額">
-<button onclick="add()">追加</button>
+<button onclick="add()">記録</button>
 
-<h3>合計：<span id="total"></span> 円</h3>
+<br>
+
+<select id="type" onchange="drawChart()">
+  <option value="bar">棒グラフ</option>
+  <option value="line">折れ線グラフ</option>
+</select>
+
+<h3>📅 月別合計</h3>
+<ul id="monthly"></ul>
+
+<h3>🏷 カテゴリ別合計</h3>
+<ul id="categorySum"></ul>
 
 <ul id="list"></ul>
 
-<canvas id="chart" width="300" height="300"></canvas>
+<canvas id="chart" width="340" height="220"></canvas>
 
 <script>
-let assets = [
-  { name: "現金", amount: 100000 }
-];
+let records = JSON.parse(localStorage.getItem("records")) || [];
 
-function format(n){
-  return n.toLocaleString();
-}
-
+// ===== 追加 =====
 function add(){
-  const name = document.getElementById("name").value;
+  const date = document.getElementById("date").value;
+  const category = document.getElementById("category").value;
   const amount = Number(document.getElementById("amount").value);
 
-  if(!name || !amount) return;
+  if(!date || !category || !amount) return alert("入力してね");
 
-  assets.push({name, amount});
+  records.push({ date, category, amount });
+
+  records.sort((a,b)=> new Date(a.date) - new Date(b.date));
+
+  save();
   render();
 }
 
+// ===== 保存 =====
+function save(){
+  localStorage.setItem("records", JSON.stringify(records));
+}
+
+// ===== 表示 =====
 function render(){
-  const list = document.getElementById("list");
-  list.innerHTML = "";
-
-  assets.forEach(a=>{
-    list.innerHTML += `<li>${a.name}：${format(a.amount)}円</li>`;
-  });
-
-  const total = assets.reduce((s,a)=>s+a.amount,0);
-  document.getElementById("total").textContent = format(total);
-
+  renderList();
+  renderMonthly();
+  renderCategory();
   drawChart();
 }
 
+// ===== 一覧 =====
+function renderList(){
+  const list = document.getElementById("list");
+  list.innerHTML = "";
+
+  records.forEach((r,i)=>{
+    list.innerHTML += `
+      <li>
+        ${r.date} / ${r.category}：${r.amount.toLocaleString()}円
+        <button onclick="del(${i})">削除</button>
+      </li>
+    `;
+  });
+}
+
+// ===== 月別 =====
+function renderMonthly(){
+  const monthly = {};
+
+  records.forEach(r=>{
+    const month = r.date.slice(0,7);
+    monthly[month] = (monthly[month] || 0) + r.amount;
+  });
+
+  const ul = document.getElementById("monthly");
+  ul.innerHTML = "";
+
+  for(let m in monthly){
+    ul.innerHTML += `<li>${m}：${monthly[m].toLocaleString()}円</li>`;
+  }
+}
+
+// ===== カテゴリ別 =====
+function renderCategory(){
+  const categorySum = {};
+
+  records.forEach(r=>{
+    categorySum[r.category] = (categorySum[r.category] || 0) + r.amount;
+  });
+
+  const ul = document.getElementById("categorySum");
+  ul.innerHTML = "";
+
+  for(let c in categorySum){
+    ul.innerHTML += `<li>${c}：${categorySum[c].toLocaleString()}円</li>`;
+  }
+}
+
+// ===== 削除 =====
+function del(i){
+  records.splice(i,1);
+  save();
+  render();
+}
+
+// ===== グラフ =====
 function drawChart(){
   const canvas = document.getElementById("chart");
   const ctx = canvas.getContext("2d");
 
-  const total = assets.reduce((s,a)=>s+a.amount,0);
+  ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  let start = 0;
+  if(records.length === 0) return;
 
-  assets.forEach((a, i)=>{
-    const slice = (a.amount / total) * 2 * Math.PI;
+  const type = document.getElementById("type").value;
 
-    ctx.beginPath();
-    ctx.moveTo(150,150);
-    ctx.arc(150,150,150,start,start+slice);
-    ctx.fillStyle = `hsl(${i*100},70%,60%)`;
-    ctx.fill();
+  const max = Math.max(...records.map(r=>r.amount));
+  const barWidth = 20;
+  const gap = 10;
 
-    start += slice;
+  let prevX = 0;
+  let prevY = 0;
+
+  records.forEach((r,i)=>{
+    const x = i * (barWidth + gap) + 30;
+    const height = (r.amount / max) * 150;
+    const y = 180 - height;
+
+    if(type === "bar"){
+      ctx.fillStyle = "#4CAF50";
+      ctx.fillRect(x, y, barWidth, height);
+    }
+
+    if(type === "line"){
+      if(i > 0){
+        ctx.beginPath();
+        ctx.moveTo(prevX, prevY);
+        ctx.lineTo(x, y);
+        ctx.strokeStyle = "#2196F3";
+        ctx.stroke();
+      }
+
+      ctx.beginPath();
+      ctx.arc(x, y, 3, 0, Math.PI*2);
+      ctx.fillStyle = "#2196F3";
+      ctx.fill();
+    }
+
+    ctx.fillStyle = "#000";
+    ctx.font = "10px sans-serif";
+    ctx.fillText(r.date.slice(5), x-5, 200);
+
+    prevX = x;
+    prevY = y;
   });
 }
 
-window.onload = render;
+// 初期表示
+render();
 </script>
 
 </body>
