@@ -46,7 +46,7 @@ button {
 #date { flex: 1; }
 #amount { flex: 2; }
 
-/* 🔥 カテゴリ */
+/* ===== カテゴリ ===== */
 #categoryList {
   display: flex;
   overflow-x: auto;
@@ -59,30 +59,26 @@ button {
   align-items: center;
 }
 
+/* 🔥 通常状態 */
 .category-btn {
   padding: 8px 12px;
-  border-radius: 8px; /* ←ここがポイント */
+  border-radius: 8px;
   background: #eee;
   border: 1px solid #ccc;
   font-size: 13px;
-
   width: auto;
   white-space: nowrap;
-}
-  border: 1px solid #ccc;
-  font-size: 13px;
-
-  /* 🔥 幅を内容に合わせる */
-  width: auto;
-  white-space: nowrap;
+  color: #333;
 }
 
+/* 🔥 active（必ず勝つように強めに） */
 .category-btn.active {
-  background: #4CAF50;
-  color: white;
+  background: #4CAF50 !important;
+  color: #fff !important;
+  border: 1px solid #4CAF50 !important;
 }
 
-/* 削除ボタン */
+/* 削除ボタン（控えめ） */
 .delete-btn {
   margin-left: 4px;
   background: #ddd;
@@ -95,15 +91,8 @@ button {
   border: none;
 }
 
-/* 押したときだけ少し強調 */
 .delete-btn:active {
   background: #bbb;
-}
-  border-radius: 50%;
-  width: 20px;
-  height: 20px;
-  padding: 0;
-  font-size: 12px;
 }
 
 /* 履歴 */
@@ -160,7 +149,7 @@ canvas {
   <button onclick="addRecord()">記録</button>
 </div>
 
-<!-- 🔥 グラフを先に -->
+<!-- グラフ -->
 <div class="card">
   <select id="graphType" onchange="drawChart()">
     <option value="total">総額</option>
@@ -173,7 +162,7 @@ canvas {
   </div>
 </div>
 
-<!-- 🔥 履歴は下 -->
+<!-- 履歴 -->
 <div class="card">
   <h3>📋 履歴</h3>
   <div id="recordList"></div>
@@ -184,7 +173,9 @@ let categories = JSON.parse(localStorage.getItem("categories")) || ["現金"];
 let records = JSON.parse(localStorage.getItem("records")) || [];
 let selectedCategory = categories[0];
 
-document.getElementById("date").value = new Date().toISOString().split("T")[0];
+// 今日をデフォルト
+document.getElementById("date").value =
+  new Date().toISOString().split("T")[0];
 
 // ===== カテゴリ =====
 function addCategory(){
@@ -211,7 +202,7 @@ function deleteCategory(name){
 
 function selectCategory(c){
   selectedCategory = c;
-  render();
+  render(); // ←これが肝
 }
 
 function renderCategories(){
@@ -224,9 +215,14 @@ function renderCategories(){
 
     const btn = document.createElement("button");
     btn.textContent = c;
-    btn.className="category-btn";
-    if(c===selectedCategory) btn.classList.add("active");
-    btn.onclick=()=>selectCategory(c);
+
+    // 🔥 classを確実にセット
+    btn.className = "category-btn";
+    if(c === selectedCategory){
+      btn.classList.add("active");
+    }
+
+    btn.onclick = () => selectCategory(c);
 
     const del = document.createElement("button");
     del.textContent="×";
@@ -365,6 +361,7 @@ function save(){
   localStorage.setItem("records", JSON.stringify(records));
 }
 
+// ===== 初期描画 =====
 function render(){
   renderCategories();
   renderRecords();
