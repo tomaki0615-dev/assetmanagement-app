@@ -46,7 +46,7 @@ button {
 #date { flex: 1; }
 #amount { flex: 2; }
 
-/* カテゴリ */
+/* 🔥 カテゴリ */
 #categoryList {
   display: flex;
   overflow-x: auto;
@@ -54,10 +54,21 @@ button {
   margin-bottom: 10px;
 }
 
+.category-wrap {
+  display: flex;
+  align-items: center;
+}
+
 .category-btn {
   padding: 6px 12px;
   border-radius: 20px;
   background: #eee;
+  border: 1px solid #ccc;
+  font-size: 13px;
+
+  /* 🔥 幅を内容に合わせる */
+  width: auto;
+  white-space: nowrap;
 }
 
 .category-btn.active {
@@ -65,11 +76,14 @@ button {
   color: white;
 }
 
+/* 削除ボタン */
 .delete-btn {
+  margin-left: 4px;
   background: red;
+  color: white;
+  border-radius: 50%;
   width: 20px;
   height: 20px;
-  border-radius: 50%;
   padding: 0;
   font-size: 12px;
 }
@@ -80,11 +94,6 @@ button {
   padding: 8px 0;
   display: flex;
   justify-content: space-between;
-  align-items: center;
-}
-
-.record-left {
-  font-size: 14px;
 }
 
 .record-right button {
@@ -133,11 +142,7 @@ canvas {
   <button onclick="addRecord()">記録</button>
 </div>
 
-<div class="card">
-  <h3>📋 履歴</h3>
-  <div id="recordList"></div>
-</div>
-
+<!-- 🔥 グラフを先に -->
 <div class="card">
   <select id="graphType" onchange="drawChart()">
     <option value="total">総額</option>
@@ -148,6 +153,12 @@ canvas {
     <canvas id="chart"></canvas>
     <div id="tooltip" class="tooltip"></div>
   </div>
+</div>
+
+<!-- 🔥 履歴は下 -->
+<div class="card">
+  <h3>📋 履歴</h3>
+  <div id="recordList"></div>
 </div>
 
 <script>
@@ -168,9 +179,46 @@ function addCategory(){
   save(); render();
 }
 
+function deleteCategory(name){
+  if(!confirm("削除する？")) return;
+
+  categories = categories.filter(c=>c!==name);
+
+  if(selectedCategory===name){
+    selectedCategory = categories[0] || "";
+  }
+
+  save(); render();
+}
+
 function selectCategory(c){
   selectedCategory = c;
   render();
+}
+
+function renderCategories(){
+  const div = document.getElementById("categoryList");
+  div.innerHTML="";
+
+  categories.forEach(c=>{
+    const wrap = document.createElement("div");
+    wrap.className="category-wrap";
+
+    const btn = document.createElement("button");
+    btn.textContent = c;
+    btn.className="category-btn";
+    if(c===selectedCategory) btn.classList.add("active");
+    btn.onclick=()=>selectCategory(c);
+
+    const del = document.createElement("button");
+    del.textContent="×";
+    del.className="delete-btn";
+    del.onclick=()=>deleteCategory(c);
+
+    wrap.appendChild(btn);
+    wrap.appendChild(del);
+    div.appendChild(wrap);
+  });
 }
 
 // ===== 記録 =====
@@ -192,36 +240,13 @@ function deleteRecord(i){
   save(); render();
 }
 
-// ===== 編集 =====
 function editRecord(i){
   const r = records[i];
+  const val = prompt("金額変更", r.amount);
+  if(val===null) return;
 
-  const newAmount = prompt("金額を編集", r.amount);
-  if(newAmount === null) return;
-
-  r.amount = Number(newAmount);
+  r.amount = Number(val);
   save(); render();
-}
-
-// ===== 描画 =====
-function render(){
-  renderCategories();
-  renderRecords();
-  drawChart();
-}
-
-function renderCategories(){
-  const div = document.getElementById("categoryList");
-  div.innerHTML="";
-
-  categories.forEach(c=>{
-    const btn = document.createElement("button");
-    btn.textContent = c;
-    btn.className="category-btn";
-    if(c===selectedCategory) btn.classList.add("active");
-    btn.onclick=()=>selectCategory(c);
-    div.appendChild(btn);
-  });
 }
 
 function renderRecords(){
@@ -231,9 +256,7 @@ function renderRecords(){
   records.forEach((r,i)=>{
     div.innerHTML += `
       <div class="record">
-        <div class="record-left">
-          ${r.date} / ${r.category} / ${r.amount.toLocaleString()}円
-        </div>
+        <div>${r.date} / ${r.category} / ${r.amount.toLocaleString()}円</div>
         <div class="record-right">
           <button onclick="editRecord(${i})">編集</button>
           <button onclick="deleteRecord(${i})">削除</button>
@@ -256,9 +279,9 @@ function drawChart(){
 
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  if(records.length === 0) return;
+  if(records.length===0) return;
 
-  let map = {};
+  let map={};
   records.forEach(r=>{
     if(!map[r.date]) map[r.date]=[];
     map[r.date].push(r);
@@ -277,8 +300,8 @@ function drawChart(){
     }
   });
 
-  const max = Math.max(...values,1);
-  canvas.style.width = dates.length*60+"px";
+  const max=Math.max(...values,1);
+  canvas.style.width=dates.length*60+"px";
 
   let points=[];
 
@@ -322,6 +345,12 @@ function drawChart(){
 function save(){
   localStorage.setItem("categories", JSON.stringify(categories));
   localStorage.setItem("records", JSON.stringify(records));
+}
+
+function render(){
+  renderCategories();
+  renderRecords();
+  drawChart();
 }
 
 render();
