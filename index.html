@@ -6,73 +6,100 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+<!-- アイコン -->
 <link rel="apple-touch-icon" href="icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 
 <style>
+
+/* 🔥 はみ出し完全防止（最重要） */
+* {
+  box-sizing: border-box;
+}
+
 body {
   font-family: -apple-system;
   background: #f5f7fb;
   padding: 10px;
+  margin: 0;
 }
 
+/* カード */
 .card {
   background: white;
-  padding: 12px;
-  border-radius: 12px;
-  box-shadow: 0 3px 10px rgba(0,0,0,0.08);
-  margin-bottom: 12px;
+  padding: 16px;
+  border-radius: 14px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  margin-bottom: 14px;
 }
 
+/* 入力・ボタン */
 input, select, button {
   width: 100%;
+  max-width: 100%;
   padding: 10px;
-  margin: 5px 0;
-  border-radius: 8px;
+  margin: 6px 0;
+  border-radius: 10px;
   border: 1px solid #ddd;
+  font-size: 16px;
 }
 
+/* ボタン */
 button {
   background: #4CAF50;
   color: white;
   border: none;
+  height: 44px;
 }
 
+/* カテゴリ */
 #categoryList {
   display: flex;
   overflow-x: auto;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+#categoryList::-webkit-scrollbar {
+  display: none;
 }
 
 .category-btn {
+  flex: 0 0 auto;
   padding: 6px 12px;
-  margin-right: 6px;
   border-radius: 20px;
   background: #eee;
+  border: 1px solid #ccc;
+  font-size: 13px;
 }
 
 .active {
   background: #4CAF50;
   color: white;
+  border: none;
 }
 
+/* グラフ */
 .chart-scroll {
   overflow-x: auto;
   position: relative;
 }
 
 canvas {
-  height: 250px;
+  height: 260px;
 }
 
+/* ツールチップ */
 .tooltip {
   position: absolute;
   background: black;
   color: white;
-  padding: 5px 8px;
+  padding: 6px 8px;
   border-radius: 6px;
   font-size: 12px;
   display: none;
 }
+
 </style>
 </head>
 
@@ -105,6 +132,7 @@ canvas {
 </div>
 
 <script>
+
 let categories = JSON.parse(localStorage.getItem("categories")) || ["💴現金"];
 let records = JSON.parse(localStorage.getItem("records")) || [];
 let selectedCategory = categories[0];
@@ -141,6 +169,7 @@ function addRecord(){
 
   records.push({date, category:selectedCategory, amount});
   records.sort((a,b)=>new Date(a.date)-new Date(b.date));
+
   save(); render();
 }
 
@@ -159,6 +188,7 @@ function drawChart(){
   const canvas = document.getElementById("chart");
   const ctx = canvas.getContext("2d");
 
+  // 🔥 Retina対応
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
   canvas.width = rect.width * dpr;
@@ -213,6 +243,7 @@ function drawChart(){
   values.forEach((v,i)=>{
     const x = i*60 + 30;
     const y = 200 - (v/max)*180;
+
     points.push({x,y,value:v,date:dates[i]});
 
     if(i>0){
@@ -238,7 +269,7 @@ function drawChart(){
     }
   });
 
-  // タップ表示
+  // タップで値表示
   canvas.onclick = function(e){
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -258,7 +289,9 @@ function drawChart(){
   }
 }
 
+// 初期表示
 render();
+
 </script>
 
 </body>
